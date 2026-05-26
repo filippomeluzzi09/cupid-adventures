@@ -166,3 +166,144 @@ def load_leaderboard():
                 leaderboard_data = [line.strip() for line in f.readlines() if line.strip()]
         except Exception as e:
             print("Impossibile caricare la classifica a schermo:", e)
+
+# =========================================
+# UTILITY GRAFICHE VETTORIALI
+# =========================================
+def draw_gradient_rect(surf, c1, c2, rect):
+    x, y, w, h = rect
+    for yy in range(h):
+        alpha = yy / h
+        r = int(c1[0] + (c2[0] - c1[0]) * alpha)
+        g = int(c1[1] + (c2[1] - c1[1]) * alpha)
+        b = int(c1[2] + (c2[2] - c1[2]) * alpha)
+        pygame.draw.line(surf, (r, g, b), (x, y + yy), (x + w, y + yy))
+
+def draw_3d_sphere(surf, center, radius, base_color, shadow_color):
+    cx, cy = center
+    if radius <= 0: return
+    for r in range(int(radius), 0, -1):
+        alpha = (radius - r) / radius
+        lx = cx
+        ly = cy - int((radius - r) * 0.15)
+        curr_color = (
+            int(shadow_color[0] + (base_color[0] - shadow_color[0]) * alpha),
+            int(shadow_color[1] + (base_color[1] - shadow_color[1]) * alpha),
+            int(shadow_color[2] + (base_color[2] - shadow_color[2]) * alpha)
+        )
+        pygame.draw.circle(surf, curr_color, (lx, ly), r)
+
+def draw_heart(surf, x, y, size, color, glow_intensity=25):
+    if size <= 0: return
+    color_rgb = color[:3]
+    for r in range(int(size * 2), int(size), -2):
+        gl_alpha = int(glow_intensity * (1.0 - (r / (size * 2))))
+        glow_surf = pygame.Surface((r*2, r*2), pygame.SRCALPHA)
+        pygame.draw.circle(glow_surf, (*color_rgb, gl_alpha), (r, r), r)
+        surf.blit(glow_surf, (int(x - r), int(y - r)), special_flags=pygame.BLEND_RGBA_ADD)
+
+    pygame.draw.circle(surf, color_rgb, (int(x - size * 0.5), int(y - size * 0.5)), int(size * 0.5))
+    pygame.draw.circle(surf, color_rgb, (int(x + size * 0.5), int(y - size * 0.5)), int(size * 0.5))
+    pygame.draw.polygon(surf, color_rgb, [
+        (int(x - size * 1.0), int(y - size * 0.4)),
+        (int(x + size * 1.0), int(y - size * 0.4)),
+        (int(x), int(y + size * 1.0))
+    ])
+
+# =========================================
+# CLASSE BERSAGLIO 3D PROPORZIONALE
+# =========================================
+class Target3D:
+    def __init__(self, mode):
+        self.mode = mode
+        self.x = random.randint(750, 1200)
+        self.y = random.randint(250, 550)
+        self.z = random.uniform(0.7, 1.4) 
+        self.speed_x = random.uniform(2.5, 4.5)
+        self.speed_y = 0
+        self.dir_x = random.choice([-1, 1])
+        self.dir_y = random.choice([-1, 1])
+        self.change_timer = 0
+        self.walk_cycle = random.uniform(0, 100)
+
+    def move(self):
+        self.change_timer -= 1
+        self.walk_cycle += 0.15
+        
+        if score >= 5:
+            if self.change_timer <= 0:
+                self.speed_y = random.uniform(3.5, 6.5)
+                self.speed_x = random.uniform(4.0, 7.5)
+                self.dir_x = random.choice([-1, 1])
+                self.dir_y = random.choice([-1, 1])
+                self.change_timer = random.randint(45, 90)
+        else:
+            self.speed_y = 0  
+
+        multiplier = 1.5 if (self.mode == "DIFFICILE" and score >= 10) else 1.0
+
+        self.x += self.speed_x * self.dir_x * multiplier
+        self.y += self.speed_y * self.dir_y * multiplier
+
+        if self.x < 650 or self.x > 1300: self.dir_x *= -1
+        if self.y < 180 or self.y > HEIGHT - 350: self.dir_y *= -1
+
+    def draw(self, surf):
+        scale = 1.0 / self.z
+        cx, cy = int(self.x), int(self.y)
+
+        shadow_w = int(120 * scale)
+        shadow_h = int(30 * scale)
+        shadow_surf = pygame.Surface((shadow_w, shadow_h), pygame.SRCALPHA)
+        pygame.draw.ellipse(shadow_surf, (0, 0, 0, 45), (0, 0, shadow_w, shadow_h))
+        surf.blit(shadow_surf, (cx - shadow_w // 2, HEIGHT - 145))
+
+        pygame.draw.circle(surf, (35, 18, 12), (cx, cy - int(32 * scale)), int(48 * scale))
+        draw_3d_sphere(surf, (cx, cy - int(20 * scale)), int(36 * scale), SKIN_BASE, SKIN_SHADOW)
+            
+        pygame.draw.circle(surf, BLACK, (cx - int(14 * scale), cy - int(24 * scale)), max(1, int(3 * scale)))
+        pygame.draw.circle(surf, BLACK, (cx + int(14 * scale), cy - int(24 * scale)), max(1, int(3 * scale)))
+        pygame.draw.arc(surf, (160, 50, 50), (cx - int(15 * scale), cy - int(22 * scale), int(30 * scale), int(16 * scale)), math.pi, 0, max(2, int(3 * scale)))
+
+        color_cloth = (230, 70, 60) if score >= 5 else (75, 120, 240)
+        pygame.draw.rect(surf, color_cloth, (cx - int(32 * scale), cy + int(20 * scale), int(64 * scale), int(90 * scale)), border_radius=int(14 * scale))
+        
+        pygame.draw.line(surf, SKIN_BASE, (cx - int(32 * scale), cy + int(35 * scale)), (cx - int(60 * scale), cy + int(75 * scale)), max(2, int(11 * scale)))
+        pygame.draw.line(surf, SKIN_BASE, (cx + int(32 * scale), cy + int(35 * scale)), (cx + int(60 * scale), cy + int(75 * scale)), max(2, int(11 * scale)))
+
+        leg_sway = math.sin(self.walk_cycle) * 14 * scale
+        pygame.draw.line(surf, (40, 40, 45), (cx - int(16 * scale), cy + int(105 * scale)), (cx - int(16 * scale) + int(leg_sway), cy + int(155 * scale)), max(2, int(12 * scale)))
+        pygame.draw.line(surf, (40, 40, 45), (cx + int(16 * scale), cy + int(105 * scale)), (cx + int(16 * scale) - int(leg_sway), cy + int(155 * scale)), max(2, int(12 * scale)))
+
+        draw_heart(surf, cx, cy + int(60 * scale), int(12 * scale), RED_GLOW, glow_intensity=15)
+
+class Particle3D:
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+        self.angle = random.uniform(0, math.pi * 2)
+        self.speed = random.uniform(4.0, 12.0)
+        self.life = random.randint(30, 60)
+        self.max_life = self.life
+        self.size = random.randint(6, 14)
+
+    def update(self):
+        self.x += math.cos(self.angle) * self.speed
+        self.y += math.sin(self.angle) * self.speed + 1.2
+        self.speed *= 0.94
+        self.life -= 1
+
+    def draw(self, surf):
+        alpha = int(255 * (self.life / self.max_life))
+        if self.size > 0:
+            draw_heart(surf, int(self.x), int(self.y), int(self.size * 0.6), (255, 60, 100, alpha), glow_intensity=10)
+
+def start_game(mode):
+    global game_state, game_mode, lives, score, arrows, particles, targets, player_y
+    game_mode = mode
+    game_state = "PLAYING"
+    lives = 3
+    score = 0
+    player_y = HEIGHT // 2
+    arrows.clear()
+    particles.clear()
+    targets = [Target3D(game_mode) for _ in range(4)]

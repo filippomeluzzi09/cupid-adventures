@@ -307,3 +307,52 @@ def start_game(mode):
     arrows.clear()
     particles.clear()
     targets = [Target3D(game_mode) for _ in range(4)]
+
+# =========================================
+# ENGINE LOOP CORE PRINCIPALE
+# =========================================
+running = True
+while running:
+    clock.tick(60)
+    time_elapsed += 1
+    mouse_pos = pygame.mouse.get_pos()
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+            
+        if event.type == pygame.KEYDOWN:
+            if game_state == "LOGIN":
+                if event.key == pygame.K_RETURN:
+                    if len(username.strip()) > 0: game_state = "HOME"
+                elif event.key == pygame.K_BACKSPACE:
+                    username = username[:-1]
+                else:
+                    if len(username) < 15 and event.unicode.isalnum() or event.unicode == ' ':
+                        username += event.unicode
+            elif game_state == "PLAYING":
+                if event.key == pygame.K_SPACE:
+                    arrows.append([player_x + 65, player_y + 12])
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if game_state == "HOME":
+                if btn_difficile.collidepoint(mouse_pos): start_game("DIFFICILE")
+                elif btn_infinita.collidepoint(mouse_pos): start_game("INFINITA")
+            elif game_state == "PLAYING":
+                if btn_back_to_menu.collidepoint(mouse_pos):
+                    game_state = "HOME"
+            elif game_state in ["VICTORY", "GAME_OVER"]:
+                game_state = "HOME"
+
+    pygame_surface.fill((0, 0, 0))
+
+    draw_gradient_rect(pygame_surface, (255, 175, 200), (255, 235, 245), (0, 0, WIDTH, HEIGHT))
+    draw_gradient_rect(pygame_surface, (100, 190, 110), (60, 130, 70), (0, HEIGHT - 160, WIDTH, 160))
+
+    random.seed(1337)
+    for i in range(0, WIDTH, 6):
+        h = random.randint(15, 30)
+        pygame.draw.line(pygame_surface, (45, 110, 55), (i, HEIGHT - 160), (i + 2, HEIGHT - 160 - h), 2)
+    random.seed()
+
+    current_light_x, current_light_y = -100.0, -100.0

@@ -356,3 +356,135 @@ while running:
     random.seed()
 
     current_light_x, current_light_y = -100.0, -100.0
+
+    # =====================================
+    # MACCHINA A STATI DI GIOCO
+    # =====================================
+    if game_state == "LOGIN":
+        box = pygame.Rect(WIDTH // 2 - 300, HEIGHT // 2 - 60, 600, 120)
+        pygame.draw.rect(pygame_surface, WHITE, box, border_radius=20)
+        pygame.draw.rect(pygame_surface, DARK_RED, box, width=4, border_radius=20)
+        
+        lbl_info = font.render("INSERISCI IL TUO NOME E PREMI INVIO:", True, BLACK)
+        name_surface = medium_font.render(username + ("|" if time_elapsed % 40 < 20 else ""), True, DARK_RED)
+        
+        pygame_surface.blit(lbl_info, (WIDTH // 2 - lbl_info.get_width() // 2, HEIGHT // 2 - 120))
+        pygame_surface.blit(name_surface, (WIDTH // 2 - name_surface.get_width() // 2, HEIGHT // 2 - 30))
+
+    elif game_state == "HOME":
+        title_text = big_font.render("CUPID 3D ADVENTURES", True, DARK_RED)
+        welcome_txt = font.render(f"Benvenuto, {username}!", True, BLACK)
+        pygame_surface.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, 120))
+        pygame_surface.blit(welcome_txt, (WIDTH // 2 - welcome_txt.get_width() // 2, 260))
+        
+        btn_difficile = pygame.Rect(WIDTH // 2 - 340, 420, 680, 130)
+        btn_infinita = pygame.Rect(WIDTH // 2 - 340, 590, 680, 130)
+        
+        pygame.draw.rect(pygame_surface, (215, 50, 75) if btn_difficile.collidepoint(mouse_pos) else (175, 20, 45), btn_difficile, border_radius=25)
+        pygame.draw.rect(pygame_surface, (110, 170, 255) if btn_infinita.collidepoint(mouse_pos) else (60, 120, 220), btn_infinita, border_radius=25)
+        
+        t1 = medium_font.render("MODALITA DYNAMIC-3D", True, WHITE)
+        t2 = medium_font.render("MODALITA INFINITA 3D", True, WHITE)
+        pygame_surface.blit(t1, (btn_difficile.x + (btn_difficile.w - t1.get_width()) // 2, btn_difficile.y + 35))
+        pygame_surface.blit(t2, (btn_infinita.x + (btn_infinita.w - t2.get_width()) // 2, btn_infinita.y + 35))
+
+    elif game_state == "PLAYING":
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_UP]: player_y -= 8
+        if keys[pygame.K_DOWN]: player_y += 8
+        player_y = max(170, min(HEIGHT - 230, player_y))
+
+        # Disegna Cupido
+        draw_3d_sphere(pygame_surface, (player_x, player_y - 16), 32, SKIN_BASE, SKIN_SHADOW)
+        pygame.draw.rect(pygame_surface, WHITE, (player_x - 35, player_y + 16, 70, 95), border_radius=22)
+        pygame.draw.arc(pygame_surface, GOLD, (player_x - 90, player_y - 30, 110, 140), math.pi / 2, math.pi * 1.5, 7)
+
+        for t in targets:
+            t.move()
+            t.draw(pygame_surface)
+
+        for arrow_pos in arrows[:]:
+            arrow_pos[0] += 25  # Corretto lo spostamento diretto sull'indice X della lista
+            ax, ay = arrow_pos[0], arrow_pos[1]
+            current_light_x, current_light_y = float(ax), float(ay)
+            
+            pygame.draw.line(pygame_surface, GOLD, (ax, ay), (ax - 45, ay), 5)
+            pygame.draw.polygon(pygame_surface, RED_GLOW, [(ax + 12, ay), (ax, ay - 6), (ax, ay + 6)])
+
+            for t in targets:
+                hx, hy = t.x, t.y
+                if math.hypot(ax - hx, ay - hy) < (65 / t.z):
+                    if pop_sound: pop_sound.play()
+                    for _ in range(35): particles.append(Particle3D(hx, hy))
+                    
+                    score += 1
+                    t.x, t.y, t.z = random.randint(750, 1200), random.randint(250, 550), random.uniform(0.7, 1.4)
+                    t.change_timer = 0
+                    
+                    if arrow_pos in arrows: arrows.remove(arrow_pos)
+                    break
+
+            if ax > WIDTH + 100:
+                if arrow_pos in arrows: arrows.remove(arrow_pos)
+                lives -= 1 
+
+        for p in particles[:]:
+            p.update()
+            p.draw(pygame_surface)
+            if p.life <= 0: particles.remove(p)
+
+        # Rendering pulsante Menu
+        c_btn = (210, 70, 70) if btn_back_to_menu.collidepoint(mouse_pos) else (50, 50, 50)
+        pygame.draw.rect(pygame_surface, c_btn, btn_back_to_menu, border_radius=12)
+        txt_menu = font.render("TORNA AL MENU", True, WHITE)
+        pygame_surface.blit(txt_menu, (btn_back_to_menu.x + (btn_back_to_menu.w - txt_menu.get_width())//2, btn_back_to_menu.y + 12))
+
+        # HUD di gioco
+        hud_lives = font.render(f"Lives: {lives}/{MAX_LIVES if game_mode == 'DIFFICILE' else 3}", True, BLACK)
+        hud_score = font.render(f"Points: {score}", True, BLACK)
+        
+        if score >= 10: hud_alert = font.render("IA LEVEL: EXTREME (SPEED X2)", True, DARK_RED)
+        elif score >= 5: hud_alert = font.render("IA LEVEL: ADVANCED (VERTICAL/OBLIQUE)", True, (130, 20, 150))
+        else: hud_alert = font.render("IA LEVEL: NORMAL", True, (40, 100, 40))
+
+        pygame_surface.blit(hud_lives, (40, 40))
+        pygame_surface.blit(hud_score, (40, 90))
+        pygame_surface.blit(hud_alert, (40, 140))
+
+        if game_mode == "DIFFICILE" and score >= 15:
+            save_score_to_file()
+            load_leaderboard()
+            game_state = "VICTORY"
+        elif lives <= 0:
+            save_score_to_file()
+            load_leaderboard()
+            game_state = "GAME_OVER"
+
+    elif game_state == "VICTORY":
+        text = big_font.render("LOVE WINS!", True, DARK_RED)
+        pygame_surface.blit(text, (WIDTH // 2 - text.get_width() // 2, 100))
+        
+        lbl_rank = font.render("--- TOP 5 MIGLIORI GIOCATORI ---", True, BLACK)
+        pygame_surface.blit(lbl_rank, (WIDTH // 2 - lbl_rank.get_width() // 2, 280))
+        
+        for idx, line in enumerate(leaderboard_data):
+            rank_text = font.render(f"{idx+1}. {line}", True, BLACK)
+            pygame_surface.blit(rank_text, (WIDTH // 2 - rank_text.get_width() // 2, 340 + idx * 50))
+            
+        lbl_back = font.render("[Clicca ovunque per tornare alla Home]", True, DARK_RED)
+        pygame_surface.blit(lbl_back, (WIDTH // 2 - lbl_back.get_width() // 2, 650))
+
+    elif game_state == "GAME_OVER":
+        txt = big_font.render("BROKEN HEART", True, BLACK)
+        pygame_surface.blit(txt, (WIDTH // 2 - txt.get_width() // 2, 100))
+        
+        lbl_rank = font.render("--- TOP 5 MIGLIORI GIOCATORI ---", True, BLACK)
+        pygame_surface.blit(lbl_rank, (WIDTH // 2 - lbl_rank.get_width() // 2, 280))
+        
+        for idx, line in enumerate(leaderboard_data):
+            rank_text = font.render(f"{idx+1}. {line}", True, BLACK)
+            pygame_surface.blit(rank_text, (WIDTH // 2 - rank_text.get_width() // 2, 340 + idx * 50))
+            
+        lbl_back = font.render("[Clicca ovunque per tornare alla Home]", True, DARK_RED)
+        lbl_back_rect = lbl_back.get_rect(center=(WIDTH // 2, 650))
+        pygame_surface.blit(lbl_back, lbl_back_rect)

@@ -118,7 +118,7 @@ SKIN_BASE, SKIN_SHADOW = (245, 210, 185), (210, 160, 135)
 # GESTIONE FILE CLASSIFICA FORZATA NELLA CARTELLA
 # =========================================
 # Calcoliamo la cartella esatta in cui si trova questo file di script .py
-SCRIPT_DIR = os.path.dirname(os.path.abspath(_file_))
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 FILE_CLASSIFICA = os.path.join(SCRIPT_DIR, "classifica.txt")
 
 def save_score_to_file():

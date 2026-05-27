@@ -488,3 +488,22 @@ while running:
         lbl_back = font.render("[Clicca ovunque per tornare alla Home]", True, DARK_RED)
         lbl_back_rect = lbl_back.get_rect(center=(WIDTH // 2, 650))
         pygame_surface.blit(lbl_back, lbl_back_rect)
+
+    # =====================================
+    # RENDERING E INVIO ALLA SCHEDA VIDEO
+    # =====================================
+    surface_data = pygame.image.tostring(pygame_surface, 'RGBA', False)
+    
+    texture = ctx.texture((WIDTH, HEIGHT), 4, surface_data)
+    texture.use(0)
+
+    program['time'].value = time_elapsed * 0.05
+    program['light_pos'].value = (current_light_x, current_light_y)
+
+    ctx.clear(0, 0, 0)
+    vao.render(moderngl.TRIANGLE_STRIP)
+    
+    texture.release()
+    pygame.display.flip()
+
+pygame.quit()
